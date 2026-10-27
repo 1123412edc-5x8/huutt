@@ -11,7 +11,7 @@
     <!-- Canvas Confetti -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
-    <!-- Firebase SDK (v9 Compatibility Mode for easy single-file usage) -->
+    <!-- Firebase SDK (v9 Compatibility Mode) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
 
@@ -21,12 +21,12 @@
                 extend: {
                     colors: {
                         brand: {
-                            purple: '#46178f',
-                            blue: '#1368ce',
+                            purple: '#1e40af', // 轉為深藍色
+                            blue: '#2563eb',
                             red: '#e21b3c',
                             yellow: '#ffa602',
-                            green: '#26890c',
-                            dark: '#1e0a3c'
+                            green: '#22c55e',
+                            dark: '#0f172a'
                         }
                     }
                 }
@@ -37,11 +37,11 @@
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
         body {
             font-family: 'Noto Sans TC', sans-serif;
-            background-color: #f2f2f2;
+            background-color: #f8fafc;
         }
         .bg-pattern {
-            background-color: #46178f;
-            background-image: radial-gradient(#5a1fb8 2px, transparent 2px);
+            background-color: #1e3a8a;
+            background-image: radial-gradient(#3b82f6 2px, transparent 2px);
             background-size: 32px 32px;
         }
         .btn-option {
@@ -78,22 +78,22 @@
 
         <!-- 1. HOME SCREEN: Enter Room / Name -->
         <div id="screenHome" class="bg-white rounded-3xl p-6 md:p-10 shadow-2xl text-center max-w-md mx-auto w-full border-4 border-white/20">
-            <h1 class="text-4xl font-black text-brand-purple mb-2">準備好挑戰了嗎？</h1>
+            <h1 class="text-4xl font-black text-blue-600 mb-2">準備好挑戰了嗎？</h1>
             <p class="text-slate-500 mb-8 font-medium">輸入測驗碼與名字即可開始測驗！</p>
             
             <form id="joinForm" onsubmit="handleJoin(event)" class="space-y-4">
                 <div>
                     <label class="block text-left text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">測驗碼</label>
                     <input type="text" id="inputQuizCode" required placeholder="例如：MATH101" 
-                           class="w-full px-4 py-3 border-2 border-slate-200 rounded-2xl font-bold text-slate-700 text-center uppercase text-xl focus:border-brand-purple focus:outline-none transition">
+                           class="w-full px-4 py-3 border-2 border-slate-200 rounded-2xl font-bold text-slate-700 text-center uppercase text-xl focus:border-blue-600 focus:outline-none transition">
                 </div>
                 <div>
                     <label class="block text-left text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">玩家名稱</label>
                     <input type="text" id="inputPlayerName" required placeholder="請輸入你的暱稱" 
-                           class="w-full px-4 py-3 border-2 border-slate-200 rounded-2xl font-bold text-slate-700 text-center text-xl focus:border-brand-purple focus:outline-none transition" maxlength="15">
+                           class="w-full px-4 py-3 border-2 border-slate-200 rounded-2xl font-bold text-slate-700 text-center text-xl focus:border-blue-600 focus:outline-none transition" maxlength="15">
                 </div>
                 <button type="submit" 
-                        class="w-full bg-brand-green hover:bg-green-700 text-white font-black text-xl py-4 rounded-2xl shadow-[0_6px_0_#1a5c08] active:shadow-none active:translate-y-1 transition-all">
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black text-xl py-4 rounded-2xl shadow-[0_6px_0_#1e40af] active:shadow-none active:translate-y-1 transition-all">
                     開始測驗
                 </button>
             </form>
@@ -104,7 +104,7 @@
             <!-- Progress & Timer bar -->
             <div class="bg-white/90 backdrop-blur p-4 rounded-2xl shadow-md flex justify-between items-center">
                 <div class="text-slate-600 font-bold">
-                    題目 <span id="qCurrentIndex" class="text-brand-purple text-xl">1</span> / <span id="qTotalCount">10</span>
+                    題目 <span id="qCurrentIndex" class="text-blue-600 text-xl">1</span> / <span id="qTotalCount">10</span>
                 </div>
                 <div class="flex items-center space-x-2">
                     <i class="fa-solid fa-stopwatch text-brand-red text-xl"></i>
@@ -112,34 +112,38 @@
                 </div>
                 <div class="text-right">
                     <span class="text-xs text-slate-400 block font-bold">當前分數</span>
-                    <span id="liveScore" class="text-xl font-black text-brand-blue">0</span>
+                    <span id="liveScore" class="text-xl font-black text-blue-600">0</span>
                 </div>
             </div>
 
             <!-- Question Card -->
-            <div class="bg-white rounded-3xl p-8 shadow-xl text-center border-b-8 border-slate-200 min-h-[180px] flex items-center justify-center">
+            <div class="bg-white rounded-3xl p-6 md:p-8 shadow-xl text-center border-b-8 border-slate-200 flex flex-col items-center justify-center space-y-4">
                 <h2 id="questionTitle" class="text-2xl md:text-3xl font-black text-slate-800 leading-relaxed">
                     題目載入中...
                 </h2>
+                <!-- Question Image (If any) -->
+                <div id="questionImageContainer" class="hidden w-full max-h-64 overflow-hidden rounded-2xl border border-slate-200">
+                    <img id="questionImage" src="" alt="題目圖片" class="w-full h-full object-contain mx-auto max-h-60">
+                </div>
             </div>
 
             <!-- Answer Options (4 Grid) -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <button onclick="submitAnswer(0)" class="btn-option bg-brand-red text-white p-6 rounded-2xl text-left font-black text-xl flex items-center space-x-4 shadow-[0_6px_0_#a8132b]">
-                    <span class="bg-white/20 rounded-lg w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-play rotate-[-90deg]"></i></span>
-                    <span id="opt0" class="flex-grow">選項 1</span>
+                    <span class="bg-white/20 rounded-lg w-10 h-10 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-play rotate-[-90deg]"></i></span>
+                    <span id="opt0" class="flex-grow break-all">選項 1</span>
                 </button>
-                <button onclick="submitAnswer(1)" class="btn-option bg-brand-blue text-white p-6 rounded-2xl text-left font-black text-xl flex items-center space-x-4 shadow-[0_6px_0_#0d4da0]">
-                    <span class="bg-white/20 rounded-lg w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-diamond"></i></span>
-                    <span id="opt1" class="flex-grow">選項 2</span>
+                <button onclick="submitAnswer(1)" class="btn-option bg-brand-blue text-white p-6 rounded-2xl text-left font-black text-xl flex items-center space-x-4 shadow-[0_6px_0_#1d4ed8]">
+                    <span class="bg-white/20 rounded-lg w-10 h-10 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-diamond"></i></span>
+                    <span id="opt1" class="flex-grow break-all">選項 2</span>
                 </button>
                 <button onclick="submitAnswer(2)" class="btn-option bg-brand-yellow text-white p-6 rounded-2xl text-left font-black text-xl flex items-center space-x-4 shadow-[0_6px_0_#cc8502]">
-                    <span class="bg-white/20 rounded-lg w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-circle"></i></span>
-                    <span id="opt2" class="flex-grow">選項 3</span>
+                    <span class="bg-white/20 rounded-lg w-10 h-10 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-circle"></i></span>
+                    <span id="opt2" class="flex-grow break-all">選項 3</span>
                 </button>
-                <button onclick="submitAnswer(3)" class="btn-option bg-brand-green text-white p-6 rounded-2xl text-left font-black text-xl flex items-center space-x-4 shadow-[0_6px_0_#1b6308]">
-                    <span class="bg-white/20 rounded-lg w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-square"></i></span>
-                    <span id="opt3" class="flex-grow">選項 4</span>
+                <button onclick="submitAnswer(3)" class="btn-option bg-brand-green text-white p-6 rounded-2xl text-left font-black text-xl flex items-center space-x-4 shadow-[0_6px_0_#15803d]">
+                    <span class="bg-white/20 rounded-lg w-10 h-10 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-square"></i></span>
+                    <span id="opt3" class="flex-grow break-all">選項 4</span>
                 </button>
             </div>
         </div>
@@ -157,8 +161,8 @@
         <div id="screenLeaderboard" class="hidden bg-white rounded-3xl p-6 md:p-8 shadow-2xl w-full max-w-2xl mx-auto">
             <div class="text-center mb-6">
                 <i class="fa-solid fa-trophy text-brand-yellow text-6xl mb-2 drop-shadow"></i>
-                <h2 id="boardQuizTitle" class="text-3xl font-black text-brand-purple">英雄榜</h2>
-                <p class="text-slate-500 font-bold mt-1">測驗碼: <span id="boardQuizCode" class="text-brand-blue"></span></p>
+                <h2 id="boardQuizTitle" class="text-3xl font-black text-blue-600">英雄榜</h2>
+                <p class="text-slate-500 font-bold mt-1">測驗碼: <span id="boardQuizCode" class="text-blue-500"></span></p>
             </div>
 
             <!-- Leaderboard List -->
@@ -170,7 +174,7 @@
                 <button onclick="goHome()" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-black py-3 rounded-xl transition">
                     回到首頁
                 </button>
-                <button onclick="restartQuiz()" class="w-full bg-brand-purple hover:bg-purple-900 text-white font-black py-3 rounded-xl shadow-md transition">
+                <button onclick="restartQuiz()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl shadow-md transition">
                     再測驗一次
                 </button>
             </div>
@@ -180,7 +184,7 @@
         <div id="screenAdmin" class="hidden bg-white rounded-3xl p-6 md:p-8 shadow-2xl w-full max-w-3xl mx-auto">
             <div class="flex justify-between items-center border-b pb-4 mb-6">
                 <div>
-                    <h2 class="text-2xl font-black text-brand-purple"><i class="fa-solid fa-user-shield mr-2"></i>huutt 管理員後台</h2>
+                    <h2 class="text-2xl font-black text-blue-600"><i class="fa-solid fa-user-shield mr-2"></i>huutt 管理員後台</h2>
                     <p class="text-xs text-slate-400 font-bold">創建測驗主題與題目設定</p>
                 </div>
                 <button onclick="goHome()" class="text-slate-400 hover:text-slate-600 font-bold text-sm">離開後台</button>
@@ -201,11 +205,11 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-slate-500 mb-1">測驗主題名稱</label>
-                        <input type="text" id="adminQuizTitle" placeholder="例如：數學期末小考" class="w-full p-3 border-2 rounded-xl font-bold border-slate-200 focus:border-brand-purple outline-none">
+                        <input type="text" id="adminQuizTitle" placeholder="例如：數學期末小考" class="w-full p-3 border-2 rounded-xl font-bold border-slate-200 focus:border-blue-600 outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-500 mb-1">自訂測驗碼 (後綴)</label>
-                        <input type="text" id="adminQuizCode" placeholder="例如：MATH101" class="w-full p-3 border-2 rounded-xl font-bold uppercase border-slate-200 focus:border-brand-purple outline-none">
+                        <input type="text" id="adminQuizCode" placeholder="例如：MATH101" class="w-full p-3 border-2 rounded-xl font-bold uppercase border-slate-200 focus:border-blue-600 outline-none">
                     </div>
                 </div>
 
@@ -213,7 +217,7 @@
                 <div class="space-y-4">
                     <div class="flex justify-between items-center">
                         <h3 class="font-black text-slate-700">題目列表</h3>
-                        <button onclick="addQuestionBlock()" class="bg-brand-blue hover:bg-blue-700 text-white font-bold text-sm px-3 py-2 rounded-xl transition">
+                        <button onclick="addQuestionBlock()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm px-3 py-2 rounded-xl transition">
                             <i class="fa-solid fa-plus mr-1"></i> 新增題目
                         </button>
                     </div>
@@ -224,7 +228,7 @@
                 </div>
 
                 <!-- Submit Button -->
-                <button onclick="saveQuiz()" class="w-full bg-brand-green hover:bg-green-700 text-white font-black text-xl py-4 rounded-2xl shadow-lg transition mt-6">
+                <button onclick="saveQuiz()" class="w-full bg-brand-green hover:bg-green-600 text-white font-black text-xl py-4 rounded-2xl shadow-lg transition mt-6">
                     發布並儲存測驗
                 </button>
             </div>
@@ -238,15 +242,15 @@
 
     <!-- JavaScript Application Code -->
     <script>
-        // --- 1. Firebase Initialization (Optional fallback to localStorage) ---
-        // 你可以將此處替換為你自訂的 Firebase 設定物件：
+        // --- 1. Firebase Initialization (Using your real credentials) ---
         const firebaseConfig = {
-            apiKey: "AIzaSyDummyKeyForTemplateOnly_123456",
-            authDomain: "huutt-quiz.firebaseapp.com",
-            projectId: "huutt-quiz",
-            storageBucket: "huutt-quiz.appspot.com",
-            messagingSenderId: "1234567890",
-            appId: "1:1234567890:web:abcdef123456"
+            apiKey: "AIzaSyBPO6NlHkLUWK2ddkwPvg5ffqb1tnTb6KY",
+            authDomain: "huutt-57957.firebaseapp.com",
+            databaseURL: "https://huutt-57957-default-rtdb.firebaseio.com",
+            projectId: "huutt-57957",
+            storageBucket: "huutt-57957.firebasestorage.app",
+            messagingSenderId: "190990209749",
+            appId: "1:190990209749:web:9a55ec627c82e35f1e085c"
         };
 
         let db = null;
@@ -254,7 +258,7 @@
             firebase.initializeApp(firebaseConfig);
             db = firebase.firestore();
         } catch (e) {
-            console.warn("Firebase 未配置或連線失敗，自動啟用本地存儲模式 (LocalStorage Mode)。");
+            console.warn("Firebase 初始化失敗，自動啟用本地存儲模式。");
         }
 
         // Global State Variables
@@ -267,7 +271,7 @@
         let timeLeft = 20;
         let localQuizzes = JSON.parse(localStorage.getItem('huutt_quizzes') || '{}');
 
-        // Preset Quiz Data (Default Demo)
+        // Preset Demo Quiz
         const defaultDemoQuiz = {
             title: "huutt 經典體驗測驗",
             code: "DEMO123",
@@ -276,32 +280,23 @@
                     title: "世界上最大的海洋是？",
                     options: ["大西洋", "印度洋", "太平洋", "北冰洋"],
                     correct: 2,
-                    timeLimit: 15
-                },
-                {
-                    title: "HTML 的全稱是什麼？",
-                    options: ["Hyper Text Markup Language", "High Tech Multi Language", "Hyper Tabbed Media Level", "Home Tool Markup Logic"],
-                    correct: 0,
-                    timeLimit: 15
+                    timeLimit: 15,
+                    image: ""
                 }
             ]
         };
 
-        // Initialize App
         window.addEventListener('DOMContentLoaded', () => {
-            // Read hash if exists (e.g. #MATH101)
             const hash = window.location.hash.replace('#', '').trim().toUpperCase();
             if(hash) {
                 document.getElementById('inputQuizCode').value = hash;
             }
-            // Add default quiz if empty
             if (!localQuizzes["DEMO123"]) {
                 localQuizzes["DEMO123"] = defaultDemoQuiz;
                 localStorage.setItem('huutt_quizzes', JSON.stringify(localQuizzes));
             }
         });
 
-        // Navigation Helpers
         function hideAllScreens() {
             document.querySelectorAll('main > div').forEach(div => div.classList.add('hidden'));
             document.getElementById('currentRoomTag').classList.add('hidden');
@@ -314,13 +309,12 @@
             clearInterval(timerInterval);
         }
 
-        // --- 2. Hidden Admin Login & Quiz Join Logic ---
+        // --- 2. Hidden Admin Login & Quiz Join ---
         async function handleJoin(e) {
             e.preventDefault();
             const code = document.getElementById('inputQuizCode').value.trim().toUpperCase();
             const name = document.getElementById('inputPlayerName').value.trim();
 
-            // Hidden Admin Trigger Protocol
             if (code === "ZXCVB123" && name === "管理員") {
                 openAdminConsole();
                 return;
@@ -331,7 +325,6 @@
                 return;
             }
 
-            // Fetch Quiz
             const quiz = await fetchQuizData(code);
             if (!quiz) {
                 alert("找不到此測驗碼，請確認後重試！");
@@ -344,7 +337,6 @@
             userScore = 0;
             currentQuestionIdx = 0;
 
-            // Update URL Hash
             window.location.hash = code;
             document.getElementById('displayCodeTag').innerText = code;
             document.getElementById('currentRoomTag').classList.remove('hidden');
@@ -352,7 +344,6 @@
             startQuiz();
         }
 
-        // Fetch Quiz Data from Firebase or LocalStorage
         async function fetchQuizData(code) {
             if (db) {
                 try {
@@ -365,7 +356,7 @@
             return localQuizzes[code] || null;
         }
 
-        // --- 3. Quiz Gameplay Engine ---
+        // --- 3. Gameplay Engine ---
         function startQuiz() {
             hideAllScreens();
             document.getElementById('screenQuiz').classList.remove('hidden');
@@ -384,11 +375,21 @@
             document.getElementById('questionTitle').innerText = q.title;
             document.getElementById('liveScore').innerText = userScore;
 
+            // Handle Image display
+            const imgContainer = document.getElementById('questionImageContainer');
+            const imgEl = document.getElementById('questionImage');
+            if (q.image && q.image.trim() !== "") {
+                imgEl.src = q.image;
+                imgContainer.classList.remove('hidden');
+            } else {
+                imgEl.src = "";
+                imgContainer.classList.add('hidden');
+            }
+
             q.options.forEach((opt, idx) => {
                 document.getElementById(`opt${idx}`).innerText = opt;
             });
 
-            // Start Timer
             timeLeft = q.timeLimit || 20;
             document.getElementById('timerText').innerText = timeLeft;
             clearInterval(timerInterval);
@@ -397,7 +398,7 @@
                 document.getElementById('timerText').innerText = timeLeft;
                 if (timeLeft <= 0) {
                     clearInterval(timerInterval);
-                    submitAnswer(-1); // Timeout
+                    submitAnswer(-1);
                 }
             }, 1000);
         }
@@ -409,7 +410,6 @@
             
             let pointsGained = 0;
             if (isCorrect) {
-                // Score Calculation: Dynamic based on speed
                 pointsGained = 500 + Math.round((timeLeft / (q.timeLimit || 20)) * 500);
                 userScore += pointsGained;
             }
@@ -451,17 +451,14 @@
             }, 2000);
         }
 
-        // --- 4. Leaderboard & Results ---
+        // --- 4. Leaderboard ---
         async function finishQuiz() {
             hideAllScreens();
             document.getElementById('screenLeaderboard').classList.remove('hidden');
             document.getElementById('boardQuizTitle').innerText = currentQuiz.title;
             document.getElementById('boardQuizCode').innerText = currentQuizCode;
 
-            // Save Score
             await saveScore(currentQuizCode, userName, userScore);
-
-            // Fetch and Render Leaderboard
             renderLeaderboard(currentQuizCode);
         }
 
@@ -473,11 +470,10 @@
                     await db.collection('leaderboards').doc(code).collection('scores').add(entry);
                     return;
                 } catch(e) {
-                    console.log("Firestore 儲存失敗，使用 LocalStorage");
+                    console.log("Firestore 儲存失敗");
                 }
             }
 
-            // Fallback LocalStorage
             let scores = JSON.parse(localStorage.getItem(`scores_${code}`) || '[]');
             scores.push(entry);
             localStorage.setItem(`scores_${code}`, JSON.stringify(scores));
@@ -495,7 +491,7 @@
                                              .orderBy('score', 'desc').limit(20).get();
                     snapshot.forEach(doc => scores.push(doc.data()));
                 } catch(e) {
-                    console.log("Firestore 獲取失敗，改讀取本地排行榜");
+                    console.log("Firestore 獲取失敗");
                 }
             }
 
@@ -504,10 +500,8 @@
                 scores.sort((a, b) => b.score - a.score);
             }
 
-            // Render Output
             listContainer.innerHTML = '';
 
-            // 如果排行榜還沒有人
             if (scores.length === 0) {
                 listContainer.innerHTML = `
                     <div class="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
@@ -526,13 +520,13 @@
                 const isMe = item.name === userName;
 
                 const row = document.createElement('div');
-                row.className = `flex justify-between items-center p-3 rounded-xl ${isMe ? 'bg-purple-100 border-2 border-brand-purple' : 'bg-slate-100'}`;
+                row.className = `flex justify-between items-center p-3 rounded-xl ${isMe ? 'bg-blue-50 border-2 border-blue-600' : 'bg-slate-100'}`;
                 row.innerHTML = `
                     <div class="flex items-center space-x-3">
                         ${medal}
-                        <span class="font-bold text-slate-800 ${isMe ? 'text-brand-purple font-black' : ''}">${escapeHtml(item.name)} ${isMe ? '(你)' : ''}</span>
+                        <span class="font-bold text-slate-800 ${isMe ? 'text-blue-600 font-black' : ''}">${escapeHtml(item.name)} ${isMe ? '(你)' : ''}</span>
                     </div>
-                    <span class="font-black text-brand-blue">${item.score} 分</span>
+                    <span class="font-black text-blue-600">${item.score} 分</span>
                 `;
                 listContainer.appendChild(row);
             });
@@ -544,13 +538,11 @@
             startQuiz();
         }
 
-        // --- 5. Admin Dashboard Logic ---
+        // --- 5. Admin Dashboard with Image Upload Support ---
         function openAdminConsole() {
             hideAllScreens();
             document.getElementById('screenAdmin').classList.remove('hidden');
             document.getElementById('questionBlocksContainer').innerHTML = '';
-            
-            // Add default question block
             addQuestionBlock();
             renderAdminQuizList();
         }
@@ -563,10 +555,21 @@
             block.className = 'bg-slate-50 p-4 rounded-2xl border-2 border-slate-200 space-y-3 relative';
             block.innerHTML = `
                 <div class="flex justify-between items-center">
-                    <span class="font-black text-brand-purple text-sm">第 ${qCount} 題</span>
+                    <span class="font-black text-blue-600 text-sm">第 ${qCount} 題</span>
                     ${qCount > 1 ? `<button onclick="this.parentElement.parentElement.remove()" class="text-brand-red font-bold text-xs"><i class="fa-solid fa-trash mr-1"></i>刪除</button>` : ''}
                 </div>
                 <input type="text" placeholder="輸入題目內容" class="q-title w-full p-2 border rounded-lg text-sm font-bold border-slate-300">
+                
+                <!-- Image Upload Input -->
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-slate-400">上傳題目圖片 (選填)</label>
+                    <input type="file" accept="image/*" onchange="handleImageUpload(this)" class="q-image-input w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100">
+                    <input type="hidden" class="q-image-base64">
+                    <div class="q-image-preview hidden mt-2">
+                        <img src="" alt="預覽圖" class="h-20 object-contain rounded-lg border">
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-2 gap-2">
                     <input type="text" placeholder="選項 1" class="q-opt-0 p-2 border rounded-lg text-xs border-slate-300">
                     <input type="text" placeholder="選項 2" class="q-opt-1 p-2 border rounded-lg text-xs border-slate-300">
@@ -586,6 +589,25 @@
             container.appendChild(block);
         }
 
+        // Convert uploaded image to Base64
+        function handleImageUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64Data = e.target.result;
+                const parentBlock = input.closest('div').parentElement;
+                parentBlock.querySelector('.q-image-base64').value = base64Data;
+                
+                const previewDiv = parentBlock.querySelector('.q-image-preview');
+                const previewImg = previewDiv.querySelector('img');
+                previewImg.src = base64Data;
+                previewDiv.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
         async function saveQuiz() {
             const title = document.getElementById('adminQuizTitle').value.trim();
             const code = document.getElementById('adminQuizCode').value.trim().toUpperCase();
@@ -600,6 +622,7 @@
 
             blocks.forEach(b => {
                 const qTitle = b.querySelector('.q-title').value.trim();
+                const qImage = b.querySelector('.q-image-base64').value || "";
                 const opt0 = b.querySelector('.q-opt-0').value.trim();
                 const opt1 = b.querySelector('.q-opt-1').value.trim();
                 const opt2 = b.querySelector('.q-opt-2').value.trim();
@@ -609,6 +632,7 @@
                 if (qTitle && opt0 && opt1) {
                     questions.push({
                         title: qTitle,
+                        image: qImage,
                         options: [opt0, opt1, opt2 || '選項3', opt3 || '選項4'],
                         correct: correct,
                         timeLimit: 15
@@ -623,22 +647,19 @@
 
             const quizData = { title, code, questions };
 
-            // Save to Firebase
             if (db) {
                 try {
                     await db.collection('quizzes').doc(code).set(quizData);
                 } catch(e) {
-                    console.log("Firebase 儲存失敗，轉儲存至 LocalStorage");
+                    console.log("Firebase 儲存失敗");
                 }
             }
 
-            // Save to LocalStorage
             localQuizzes[code] = quizData;
             localStorage.setItem('huutt_quizzes', JSON.stringify(localQuizzes));
 
             alert(`測驗 [${title}] 已成功發布！\n測驗碼為：${code}`);
             
-            // Clear inputs & Refresh List
             document.getElementById('adminQuizTitle').value = '';
             document.getElementById('adminQuizCode').value = '';
             document.getElementById('questionBlocksContainer').innerHTML = '';
@@ -646,7 +667,6 @@
             renderAdminQuizList();
         }
 
-        // Render Quiz Management List in Admin
         async function renderAdminQuizList() {
             const listEl = document.getElementById('adminQuizList');
             listEl.innerHTML = '<div class="text-xs text-slate-400">載入測驗列表中...</div>';
@@ -678,7 +698,7 @@
                 div.innerHTML = `
                     <div>
                         <span class="font-black text-slate-800 text-sm">${escapeHtml(item.title)}</span>
-                        <span class="text-xs text-brand-purple font-bold ml-2">(${k})</span>
+                        <span class="text-xs text-blue-600 font-bold ml-2">(${k})</span>
                     </div>
                     <button onclick="deleteQuiz('${k}')" class="text-brand-red hover:bg-red-50 p-2 rounded-lg text-xs font-bold transition">
                         <i class="fa-solid fa-trash mr-1"></i>刪除
@@ -688,22 +708,19 @@
             });
         }
 
-        // Delete Quiz Function
         async function deleteQuiz(code) {
             if (!confirm(`確定要刪除測驗碼為 [${code}] 的測驗嗎？此動作無法復原！`)) {
                 return;
             }
 
-            // 1. Delete from Firebase Firestore if available
             if (db) {
                 try {
                     await db.collection('quizzes').doc(code).delete();
                 } catch(e) {
-                    console.log("Firebase 刪除失敗或未配置");
+                    console.log("Firebase 刪除失敗");
                 }
             }
 
-            // 2. Delete from LocalStorage
             delete localQuizzes[code];
             localStorage.setItem('huutt_quizzes', JSON.stringify(localQuizzes));
             localStorage.removeItem(`scores_${code}`);
@@ -712,9 +729,8 @@
             renderAdminQuizList();
         }
 
-        // Utility: Escape HTML
         function escapeHtml(str) {
-            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+            return str.replace(/&/g, "&amp;").replace(//g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
     </script>
 </body>
