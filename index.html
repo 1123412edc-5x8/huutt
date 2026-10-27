@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>huutt - 互動式測驗平台</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <!-- Firebase SDK (v9 Compatibility Mode for easy single-file usage) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            purple: '#46178f',
+                            blue: '#1368ce',
+                            red: '#e21b3c',
+                            yellow: '#ffa602',
+                            green: '#26890c',
+                            dark: '#1e0a3c'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f2f2f2;
+        }
+        .bg-pattern {
+            background-color: #46178f;
+            background-image: radial-gradient(#5a1fb8 2px, transparent 2px);
+            background-size: 32px 32px;
+        }
+        .btn-option {
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        }
+        .btn-option:active {
+            transform: translateY(4px);
+            box-shadow: none !important;
+        }
+    </style>
+</head>
+<body class="bg-pattern min-h-screen text-slate-800 flex flex-col justify-between selection:bg-brand-yellow selection:text-black">
+
+    <!-- Header / Navbar -->
+    <header class="bg-white/10 backdrop-blur-md border-b border-white/20 p-4 sticky top-0 z-50">
+        <div class="max-w-5xl mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="goHome()">
+                <div class="bg-brand-yellow text-brand-dark p-2 rounded-xl font-black text-2xl tracking-tighter shadow-lg rotate-3">
+                    h!
+                </div>
+                <span class="text-3xl font-black text-white tracking-wider drop-shadow">huutt</span>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <span id="currentRoomTag" class="hidden bg-white/20 text-white px-3 py-1 rounded-full text-sm font-bold border border-white/30">
+                    測驗碼: <span id="displayCodeTag"></span>
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area Container -->
+    <main class="max-w-4xl mx-auto w-full p-4 flex-grow flex flex-col justify-center my-6">
+
+        <!-- 1. HOME SCREEN: Enter Room / Name -->
+        <div id="screenHome" class="bg-white rounded-3xl p-6 md:p-10 shadow-2xl text-center max-w-md mx-auto w-full border-4 border-white/20">
+            <h1 class="text-4xl font-black text-brand-purple mb-2">準備好挑戰了嗎？</h1>
+            <p class="text-slate-500 mb-8 font-medium">輸入測驗碼與名字即可開始測驗！</p>
+            
+            <form id="joinForm" onsubmit="handleJoin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-left text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">測驗碼</label>
+                    <input type="text" id="inputQuizCode" required placeholder="例如：MATH101" 
+                           class="w-full px-4 py-3 border-2 border-slate-200 rounded-2xl font-bold text-slate-700 text-center uppercase text-xl focus:border-brand-purple focus:outline-none transition">
+                </div>
+                <div>
+                    <label class="block text-left text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">玩家名稱</label>
+                    <input type="text" id="inputPlayerName" required placeholder="請輸入你的暱稱" 
+                           class="w-full px-4 py-3 border-2 border-slate-200 rounded-2xl font-bold text-slate-700 text-center text-xl focus:border-brand-purple focus:outline-none transition" maxlength="15">
+                </div>
+                <button type="submit" 
+                        class="w-full bg-brand-green hover:bg-green-700 text-white font-black text-xl py-4 rounded-2xl shadow-[0_6px_0_#1a5c08] active:shadow-none active:translate-y-1 transition-all">
+                    開始測驗
+                </button>
+            </form>
+        </div>
+
+        <!-- 2. QUIZ SCREEN: Question & Options -->
+        <div id="screenQuiz" class="hidden w-full flex-col space-y-6">
+            <!-- Progress & Timer bar -->
+            <div class="bg-white/90 backdrop-blur p-4 rounded-2xl shadow-md flex justify-between items-center">
+                <div class="text-slate-600 font-bold">
+                    題目 <span id="qCurrentIndex" class="text-brand-purple text-xl">1</span> / <span id="qTotalCount">10</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-stopwatch text-brand-red text-xl"></i>
+                    <span id="timerText" class="text-2xl font-black text-brand-red w-8 text-center">20</span>
+                </div>
+                <div class="text-right">
+                    <span class="text-xs text-slate-400 block font-bold">當前分數</span>
+                    <span id="liveScore" class="text-xl font-black text-brand-blue">0</span>
+                </div>
+            </div>
+
+            <!-- Question Card -->
+            <div class="bg-white rounded-3xl p-8 shadow-xl text-center border-b-8 border-slate-200 min-h-[180px] flex items-center justify-center">
+                <h2 id="questionTitle" class="text-2xl md:text-3xl font-black text-slate-800 leading-relaxed">
+                    題目載入中...
+                </h2>
+            </div>
+
+            <!-- Answer Options (4 Grid) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button onclick="submitAnswer(0)" class="btn-option bg-brand-red text-white p-6 rounded-2xl text-left font-black text-xl flex items-center space-x-4 shadow-[0_6px_0_#a8132b]">
+                    <span class="bg-white/20 rounded-lg w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-play rotate-[-90deg]"></i></span>
+                    <span id="opt0" class="flex-grow">選項 1</span>
+                </button>
+                <button onclick="submitAnswer(1)" class="btn-option bg-brand-blue text-white p-6 rounded-2xl text-left font-black text-xl flex items-center space-x-4 shadow-[0_6px_0_#0d4da0]">
+                    <span class="bg-white/20 rounded-lg w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-diamond"></i></span>
+                    <span id="opt1" class="flex-grow">選項 2</span>
+                </button>
+                <button onclick="submitAnswer(2)" class="btn-option bg-brand-yellow text-white p-6 rounded-2xl text-left font-black text-xl flex items-center space-x-4 shadow-[0_6px_0_#cc8502]">
+                    <span class="bg-white/20 rounded-lg w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-circle"></i></span>
+                    <span id="opt2" class="flex-grow">選項 3</span>
+                </button>
+                <button onclick="submitAnswer(3)" class="btn-option bg-brand-green text-white p-6 rounded-2xl text-left font-black text-xl flex items-center space-x-4 shadow-[0_6px_0_#1b6308]">
+                    <span class="bg-white/20 rounded-lg w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-square"></i></span>
+                    <span id="opt3" class="flex-grow">選項 4</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 3. FEEDBACK SCREEN (After each question) -->
+        <div id="screenFeedback" class="hidden text-center py-12 flex-col items-center justify-center space-y-6">
+            <div id="feedbackIcon" class="text-8xl animate-bounce"></div>
+            <h2 id="feedbackText" class="text-4xl font-black text-white drop-shadow-md"></h2>
+            <div class="bg-white/90 backdrop-blur px-8 py-4 rounded-2xl text-2xl font-bold text-slate-700 shadow-xl">
+                獲得分數: <span id="addedScore" class="text-brand-green font-black">+0</span>
+            </div>
+        </div>
+
+        <!-- 4. LEADERBOARD / RESULT SCREEN -->
+        <div id="screenLeaderboard" class="hidden bg-white rounded-3xl p-6 md:p-8 shadow-2xl w-full max-w-2xl mx-auto">
+            <div class="text-center mb-6">
+                <i class="fa-solid fa-trophy text-brand-yellow text-6xl mb-2 drop-shadow"></i>
+                <h2 id="boardQuizTitle" class="text-3xl font-black text-brand-purple">英雄榜</h2>
+                <p class="text-slate-500 font-bold mt-1">測驗碼: <span id="boardQuizCode" class="text-brand-blue"></span></p>
+            </div>
+
+            <!-- Leaderboard List -->
+            <div id="leaderboardList" class="space-y-3 mb-8 max-h-96 overflow-y-auto pr-2">
+                <!-- Dynamic Items Inserted Here -->
+            </div>
+
+            <div class="flex space-x-4">
+                <button onclick="goHome()" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-black py-3 rounded-xl transition">
+                    回到首頁
+                </button>
+                <button onclick="restartQuiz()" class="w-full bg-brand-purple hover:bg-purple-900 text-white font-black py-3 rounded-xl shadow-md transition">
+                    再測驗一次
+                </button>
+            </div>
+        </div>
+
+        <!-- 5. ADMIN CREATOR SCREEN -->
+        <div id="screenAdmin" class="hidden bg-white rounded-3xl p-6 md:p-8 shadow-2xl w-full max-w-3xl mx-auto">
+            <div class="flex justify-between items-center border-b pb-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-black text-brand-purple"><i class="fa-solid fa-user-shield mr-2"></i>huutt 管理員後台</h2>
+                    <p class="text-xs text-slate-400 font-bold">創建測驗主題與題目設定</p>
+                </div>
+                <button onclick="goHome()" class="text-slate-400 hover:text-slate-600 font-bold text-sm">離開後台</button>
+            </div>
+
+            <!-- Quiz List & Delete Section -->
+            <div class="mb-8 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                <h3 class="font-black text-slate-700 mb-3 text-sm uppercase tracking-wider"><i class="fa-solid fa-list-check mr-1"></i> 已發布的測驗</h3>
+                <div id="adminQuizList" class="space-y-2 max-h-40 overflow-y-auto">
+                    <!-- Existing quizzes will render here -->
+                </div>
+            </div>
+
+            <hr class="my-6">
+
+            <!-- Quiz Info Form -->
+            <div class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">測驗主題名稱</label>
+                        <input type="text" id="adminQuizTitle" placeholder="例如：數學期末小考" class="w-full p-3 border-2 rounded-xl font-bold border-slate-200 focus:border-brand-purple outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">自訂測驗碼 (後綴)</label>
+                        <input type="text" id="adminQuizCode" placeholder="例如：MATH101" class="w-full p-3 border-2 rounded-xl font-bold uppercase border-slate-200 focus:border-brand-purple outline-none">
+                    </div>
+                </div>
+
+                <!-- Questions List Container -->
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-black text-slate-700">題目列表</h3>
+                        <button onclick="addQuestionBlock()" class="bg-brand-blue hover:bg-blue-700 text-white font-bold text-sm px-3 py-2 rounded-xl transition">
+                            <i class="fa-solid fa-plus mr-1"></i> 新增題目
+                        </button>
+                    </div>
+
+                    <div id="questionBlocksContainer" class="space-y-6">
+                        <!-- Dynamic Question Forms -->
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button onclick="saveQuiz()" class="w-full bg-brand-green hover:bg-green-700 text-white font-black text-xl py-4 rounded-2xl shadow-lg transition mt-6">
+                    發布並儲存測驗
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="text-center py-4 text-white/50 text-xs font-bold">
+        &copy; huutt Interactive Quiz Platform
+    </footer>
+
+    <!-- JavaScript Application Code -->
+    <script>
+        // --- 1. Firebase Initialization (Optional fallback to localStorage) ---
+        // 你可以將此處替換為你自訂的 Firebase 設定物件：
+        const firebaseConfig = {
+            apiKey: "AIzaSyDummyKeyForTemplateOnly_123456",
+            authDomain: "huutt-quiz.firebaseapp.com",
+            projectId: "huutt-quiz",
+            storageBucket: "huutt-quiz.appspot.com",
+            messagingSenderId: "1234567890",
+            appId: "1:1234567890:web:abcdef123456"
+        };
+
+        let db = null;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+        } catch (e) {
+            console.warn("Firebase 未配置或連線失敗，自動啟用本地存儲模式 (LocalStorage Mode)。");
+        }
+
+        // Global State Variables
+        let currentQuiz = null;
+        let currentQuizCode = "";
+        let currentQuestionIdx = 0;
+        let userScore = 0;
+        let userName = "";
+        let timerInterval = null;
+        let timeLeft = 20;
+        let localQuizzes = JSON.parse(localStorage.getItem('huutt_quizzes') || '{}');
+
+        // Preset Quiz Data (Default Demo)
+        const defaultDemoQuiz = {
+            title: "huutt 經典體驗測驗",
+            code: "DEMO123",
+            questions: [
+                {
+                    title: "世界上最大的海洋是？",
+                    options: ["大西洋", "印度洋", "太平洋", "北冰洋"],
+                    correct: 2,
+                    timeLimit: 15
+                },
+                {
+                    title: "HTML 的全稱是什麼？",
+                    options: ["Hyper Text Markup Language", "High Tech Multi Language", "Hyper Tabbed Media Level", "Home Tool Markup Logic"],
+                    correct: 0,
+                    timeLimit: 15
+                }
+            ]
+        };
+
+        // Initialize App
+        window.addEventListener('DOMContentLoaded', () => {
+            // Read hash if exists (e.g. #MATH101)
+            const hash = window.location.hash.replace('#', '').trim().toUpperCase();
+            if(hash) {
+                document.getElementById('inputQuizCode').value = hash;
+            }
+            // Add default quiz if empty
+            if (!localQuizzes["DEMO123"]) {
+                localQuizzes["DEMO123"] = defaultDemoQuiz;
+                localStorage.setItem('huutt_quizzes', JSON.stringify(localQuizzes));
+            }
+        });
+
+        // Navigation Helpers
+        function hideAllScreens() {
+            document.querySelectorAll('main > div').forEach(div => div.classList.add('hidden'));
+            document.getElementById('currentRoomTag').classList.add('hidden');
+        }
+
+        function goHome() {
+            hideAllScreens();
+            document.getElementById('screenHome').classList.remove('hidden');
+            window.location.hash = '';
+            clearInterval(timerInterval);
+        }
+
+        // --- 2. Hidden Admin Login & Quiz Join Logic ---
+        async function handleJoin(e) {
+            e.preventDefault();
+            const code = document.getElementById('inputQuizCode').value.trim().toUpperCase();
+            const name = document.getElementById('inputPlayerName').value.trim();
+
+            // Hidden Admin Trigger Protocol
+            if (code === "ZXCVB123" && name === "管理員") {
+                openAdminConsole();
+                return;
+            }
+
+            if (!code || !name) {
+                alert("請輸入測驗碼與名字！");
+                return;
+            }
+
+            // Fetch Quiz
+            const quiz = await fetchQuizData(code);
+            if (!quiz) {
+                alert("找不到此測驗碼，請確認後重試！");
+                return;
+            }
+
+            currentQuiz = quiz;
+            currentQuizCode = code;
+            userName = name;
+            userScore = 0;
+            currentQuestionIdx = 0;
+
+            // Update URL Hash
+            window.location.hash = code;
+            document.getElementById('displayCodeTag').innerText = code;
+            document.getElementById('currentRoomTag').classList.remove('hidden');
+
+            startQuiz();
+        }
+
+        // Fetch Quiz Data from Firebase or LocalStorage
+        async function fetchQuizData(code) {
+            if (db) {
+                try {
+                    const doc = await db.collection('quizzes').doc(code).get();
+                    if (doc.exists) return doc.data();
+                } catch(err) {
+                    console.log("Firestore 讀取失敗，採用本地儲存");
+                }
+            }
+            return localQuizzes[code] || null;
+        }
+
+        // --- 3. Quiz Gameplay Engine ---
+        function startQuiz() {
+            hideAllScreens();
+            document.getElementById('screenQuiz').classList.remove('hidden');
+            document.getElementById('qTotalCount').innerText = currentQuiz.questions.length;
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            if (currentQuestionIdx >= currentQuiz.questions.length) {
+                finishQuiz();
+                return;
+            }
+
+            const q = currentQuiz.questions[currentQuestionIdx];
+            document.getElementById('qCurrentIndex').innerText = currentQuestionIdx + 1;
+            document.getElementById('questionTitle').innerText = q.title;
+            document.getElementById('liveScore').innerText = userScore;
+
+            q.options.forEach((opt, idx) => {
+                document.getElementById(`opt${idx}`).innerText = opt;
+            });
+
+            // Start Timer
+            timeLeft = q.timeLimit || 20;
+            document.getElementById('timerText').innerText = timeLeft;
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timerText').innerText = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    submitAnswer(-1); // Timeout
+                }
+            }, 1000);
+        }
+
+        function submitAnswer(selectedIdx) {
+            clearInterval(timerInterval);
+            const q = currentQuiz.questions[currentQuestionIdx];
+            const isCorrect = selectedIdx === q.correct;
+            
+            let pointsGained = 0;
+            if (isCorrect) {
+                // Score Calculation: Dynamic based on speed
+                pointsGained = 500 + Math.round((timeLeft / (q.timeLimit || 20)) * 500);
+                userScore += pointsGained;
+            }
+
+            showFeedback(isCorrect, pointsGained);
+        }
+
+        function showFeedback(isCorrect, points) {
+            hideAllScreens();
+            const feedbackScreen = document.getElementById('screenFeedback');
+            feedbackScreen.classList.remove('hidden');
+
+            const iconEl = document.getElementById('feedbackIcon');
+            const textEl = document.getElementById('feedbackText');
+            const scoreEl = document.getElementById('addedScore');
+
+            if (isCorrect) {
+                iconEl.innerHTML = '<i class="fa-solid fa-circle-check text-brand-green"></i>';
+                textEl.innerText = "答對了！太厲害了！";
+                scoreEl.innerText = `+${points}`;
+                scoreEl.className = "text-brand-green font-black";
+                confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+            } else {
+                iconEl.innerHTML = '<i class="fa-solid fa-circle-xmark text-brand-red"></i>';
+                textEl.innerText = "答錯囉！繼續加油！";
+                scoreEl.innerText = "+0";
+                scoreEl.className = "text-slate-400 font-black";
+            }
+
+            setTimeout(() => {
+                currentQuestionIdx++;
+                if (currentQuestionIdx < currentQuiz.questions.length) {
+                    hideAllScreens();
+                    document.getElementById('screenQuiz').classList.remove('hidden');
+                    loadQuestion();
+                } else {
+                    finishQuiz();
+                }
+            }, 2000);
+        }
+
+        // --- 4. Leaderboard & Results ---
+        async function finishQuiz() {
+            hideAllScreens();
+            document.getElementById('screenLeaderboard').classList.remove('hidden');
+            document.getElementById('boardQuizTitle').innerText = currentQuiz.title;
+            document.getElementById('boardQuizCode').innerText = currentQuizCode;
+
+            // Save Score
+            await saveScore(currentQuizCode, userName, userScore);
+
+            // Fetch and Render Leaderboard
+            renderLeaderboard(currentQuizCode);
+        }
+
+        async function saveScore(code, name, score) {
+            const entry = { name, score, timestamp: Date.now() };
+
+            if (db) {
+                try {
+                    await db.collection('leaderboards').doc(code).collection('scores').add(entry);
+                    return;
+                } catch(e) {
+                    console.log("Firestore 儲存失敗，使用 LocalStorage");
+                }
+            }
+
+            // Fallback LocalStorage
+            let scores = JSON.parse(localStorage.getItem(`scores_${code}`) || '[]');
+            scores.push(entry);
+            localStorage.setItem(`scores_${code}`, JSON.stringify(scores));
+        }
+
+        async function renderLeaderboard(code) {
+            const listContainer = document.getElementById('leaderboardList');
+            listContainer.innerHTML = '<div class="text-center text-slate-400 py-4"><i class="fa-solid fa-spinner fa-spin mr-2"></i>載入排行榜中...</div>';
+
+            let scores = [];
+
+            if (db) {
+                try {
+                    const snapshot = await db.collection('leaderboards').doc(code).collection('scores')
+                                             .orderBy('score', 'desc').limit(20).get();
+                    snapshot.forEach(doc => scores.push(doc.data()));
+                } catch(e) {
+                    console.log("Firestore 獲取失敗，改讀取本地排行榜");
+                }
+            }
+
+            if (scores.length === 0) {
+                scores = JSON.parse(localStorage.getItem(`scores_${code}`) || '[]');
+                scores.sort((a, b) => b.score - a.score);
+            }
+
+            // Render Output
+            listContainer.innerHTML = '';
+
+            // 如果排行榜還沒有人
+            if (scores.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                        <i class="fa-solid fa-ghost text-slate-300 text-5xl mb-3"></i>
+                        <p class="text-slate-500 font-bold text-lg">還未有人測驗</p>
+                    </div>`;
+                return;
+            }
+
+            scores.forEach((item, index) => {
+                let medal = `<span class="font-black text-slate-400 w-6">${index + 1}</span>`;
+                if (index === 0) medal = '<i class="fa-solid fa-medal text-yellow-500 text-xl w-6"></i>';
+                if (index === 1) medal = '<i class="fa-solid fa-medal text-slate-400 text-xl w-6"></i>';
+                if (index === 2) medal = '<i class="fa-solid fa-medal text-amber-600 text-xl w-6"></i>';
+
+                const isMe = item.name === userName;
+
+                const row = document.createElement('div');
+                row.className = `flex justify-between items-center p-3 rounded-xl ${isMe ? 'bg-purple-100 border-2 border-brand-purple' : 'bg-slate-100'}`;
+                row.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        ${medal}
+                        <span class="font-bold text-slate-800 ${isMe ? 'text-brand-purple font-black' : ''}">${escapeHtml(item.name)} ${isMe ? '(你)' : ''}</span>
+                    </div>
+                    <span class="font-black text-brand-blue">${item.score} 分</span>
+                `;
+                listContainer.appendChild(row);
+            });
+        }
+
+        function restartQuiz() {
+            userScore = 0;
+            currentQuestionIdx = 0;
+            startQuiz();
+        }
+
+        // --- 5. Admin Dashboard Logic ---
+        function openAdminConsole() {
+            hideAllScreens();
+            document.getElementById('screenAdmin').classList.remove('hidden');
+            document.getElementById('questionBlocksContainer').innerHTML = '';
+            
+            // Add default question block
+            addQuestionBlock();
+            renderAdminQuizList();
+        }
+
+        function addQuestionBlock() {
+            const container = document.getElementById('questionBlocksContainer');
+            const qCount = container.children.length + 1;
+
+            const block = document.createElement('div');
+            block.className = 'bg-slate-50 p-4 rounded-2xl border-2 border-slate-200 space-y-3 relative';
+            block.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <span class="font-black text-brand-purple text-sm">第 ${qCount} 題</span>
+                    ${qCount > 1 ? `<button onclick="this.parentElement.parentElement.remove()" class="text-brand-red font-bold text-xs"><i class="fa-solid fa-trash mr-1"></i>刪除</button>` : ''}
+                </div>
+                <input type="text" placeholder="輸入題目內容" class="q-title w-full p-2 border rounded-lg text-sm font-bold border-slate-300">
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" placeholder="選項 1" class="q-opt-0 p-2 border rounded-lg text-xs border-slate-300">
+                    <input type="text" placeholder="選項 2" class="q-opt-1 p-2 border rounded-lg text-xs border-slate-300">
+                    <input type="text" placeholder="選項 3" class="q-opt-2 p-2 border rounded-lg text-xs border-slate-300">
+                    <input type="text" placeholder="選項 4" class="q-opt-3 p-2 border rounded-lg text-xs border-slate-300">
+                </div>
+                <div class="flex items-center space-x-4 pt-1">
+                    <label class="text-xs font-bold text-slate-500">正確答案選項：</label>
+                    <select class="q-correct p-1 border rounded text-xs font-bold bg-white border-slate-300">
+                        <option value="0">選項 1</option>
+                        <option value="1">選項 2</option>
+                        <option value="2">選項 3</option>
+                        <option value="3">選項 4</option>
+                    </select>
+                </div>
+            `;
+            container.appendChild(block);
+        }
+
+        async function saveQuiz() {
+            const title = document.getElementById('adminQuizTitle').value.trim();
+            const code = document.getElementById('adminQuizCode').value.trim().toUpperCase();
+
+            if (!title || !code) {
+                alert("請填寫測驗主題與測驗碼！");
+                return;
+            }
+
+            const blocks = document.querySelectorAll('#questionBlocksContainer > div');
+            const questions = [];
+
+            blocks.forEach(b => {
+                const qTitle = b.querySelector('.q-title').value.trim();
+                const opt0 = b.querySelector('.q-opt-0').value.trim();
+                const opt1 = b.querySelector('.q-opt-1').value.trim();
+                const opt2 = b.querySelector('.q-opt-2').value.trim();
+                const opt3 = b.querySelector('.q-opt-3').value.trim();
+                const correct = parseInt(b.querySelector('.q-correct').value);
+
+                if (qTitle && opt0 && opt1) {
+                    questions.push({
+                        title: qTitle,
+                        options: [opt0, opt1, opt2 || '選項3', opt3 || '選項4'],
+                        correct: correct,
+                        timeLimit: 15
+                    });
+                }
+            });
+
+            if (questions.length === 0) {
+                alert("請至少完整填寫一題題目！");
+                return;
+            }
+
+            const quizData = { title, code, questions };
+
+            // Save to Firebase
+            if (db) {
+                try {
+                    await db.collection('quizzes').doc(code).set(quizData);
+                } catch(e) {
+                    console.log("Firebase 儲存失敗，轉儲存至 LocalStorage");
+                }
+            }
+
+            // Save to LocalStorage
+            localQuizzes[code] = quizData;
+            localStorage.setItem('huutt_quizzes', JSON.stringify(localQuizzes));
+
+            alert(`測驗 [${title}] 已成功發布！\n測驗碼為：${code}`);
+            
+            // Clear inputs & Refresh List
+            document.getElementById('adminQuizTitle').value = '';
+            document.getElementById('adminQuizCode').value = '';
+            document.getElementById('questionBlocksContainer').innerHTML = '';
+            addQuestionBlock();
+            renderAdminQuizList();
+        }
+
+        // Render Quiz Management List in Admin
+        async function renderAdminQuizList() {
+            const listEl = document.getElementById('adminQuizList');
+            listEl.innerHTML = '<div class="text-xs text-slate-400">載入測驗列表中...</div>';
+
+            let allQuizzes = { ...localQuizzes };
+
+            if (db) {
+                try {
+                    const snapshot = await db.collection('quizzes').get();
+                    snapshot.forEach(doc => {
+                        allQuizzes[doc.id] = doc.data();
+                    });
+                } catch(e) {
+                    console.log("Firebase 取得列表失敗");
+                }
+            }
+
+            const keys = Object.keys(allQuizzes);
+            if (keys.length === 0) {
+                listEl.innerHTML = '<div class="text-xs text-slate-400">目前尚無已發布的測驗</div>';
+                return;
+            }
+
+            listEl.innerHTML = '';
+            keys.forEach(k => {
+                const item = allQuizzes[k];
+                const div = document.createElement('div');
+                div.className = 'flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm';
+                div.innerHTML = `
+                    <div>
+                        <span class="font-black text-slate-800 text-sm">${escapeHtml(item.title)}</span>
+                        <span class="text-xs text-brand-purple font-bold ml-2">(${k})</span>
+                    </div>
+                    <button onclick="deleteQuiz('${k}')" class="text-brand-red hover:bg-red-50 p-2 rounded-lg text-xs font-bold transition">
+                        <i class="fa-solid fa-trash mr-1"></i>刪除
+                    </button>
+                `;
+                listEl.appendChild(div);
+            });
+        }
+
+        // Delete Quiz Function
+        async function deleteQuiz(code) {
+            if (!confirm(`確定要刪除測驗碼為 [${code}] 的測驗嗎？此動作無法復原！`)) {
+                return;
+            }
+
+            // 1. Delete from Firebase Firestore if available
+            if (db) {
+                try {
+                    await db.collection('quizzes').doc(code).delete();
+                } catch(e) {
+                    console.log("Firebase 刪除失敗或未配置");
+                }
+            }
+
+            // 2. Delete from LocalStorage
+            delete localQuizzes[code];
+            localStorage.setItem('huutt_quizzes', JSON.stringify(localQuizzes));
+            localStorage.removeItem(`scores_${code}`);
+
+            alert(`已成功刪除測驗 [${code}]`);
+            renderAdminQuizList();
+        }
+
+        // Utility: Escape HTML
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
