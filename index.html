@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-<head> 
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>huutt - 互動式測驗平台</title>
@@ -11,9 +11,9 @@
     <!-- Canvas Confetti -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
-    <!-- Firebase SDK (v9 Compatibility Mode) -->
+    <!-- Firebase SDK (v9 Compatibility Mode - Realtime Database) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 
     <script>
         tailwind.config = {
@@ -179,6 +179,20 @@
                 <button onclick="goHome()" class="text-slate-400 hover:text-slate-600 font-bold text-sm">離開後台</button>
             </div>
 
+            <!-- Quick Import / Export Section -->
+            <div class="mb-6 bg-blue-50 p-4 rounded-2xl border border-blue-200 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div>
+                    <h3 class="font-black text-blue-800 text-sm"><i class="fa-solid fa-file-arrow-down mr-1"></i> 快速匯入 / 匯出測驗</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">上傳 JSON 檔快速建立題目，或匯出目前建立的題目備份。</p>
+                </div>
+                <div class="flex items-center space-x-2 w-full md:w-auto">
+                    <label class="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow text-center flex-grow md:flex-grow-0">
+                        <i class="fa-solid fa-upload mr-1"></i> 匯入 JSON 檔
+                        <input type="file" accept=".json" onchange="importQuizFromJson(this)" class="hidden">
+                    </label>
+                </div>
+            </div>
+
             <div class="mb-8 bg-slate-50 p-4 rounded-2xl border border-slate-200">
                 <h3 class="font-black text-slate-700 mb-3 text-sm uppercase tracking-wider"><i class="fa-solid fa-list-check mr-1"></i> 已發布的測驗</h3>
                 <div id="adminQuizList" class="space-y-2 max-h-40 overflow-y-auto"></div>
@@ -232,12 +246,12 @@
             appId: "1:190990209749:web:9a55ec627c82e35f1e085c"
         };
 
-        let db = null;
+        let rtdb = null;
         try {
             firebase.initializeApp(firebaseConfig);
-            db = firebase.firestore();
+            rtdb = firebase.database();
         } catch (e) {
-            console.warn("Firebase 初始化失敗，自動啟用本地存儲模式。");
+            console.warn("Firebase RTDB 初始化失敗，啟用本地模式。");
         }
 
         let currentQuiz = null;
@@ -248,6 +262,7 @@
         let timerInterval = null;
         let timeLeft = 20;
         let localQuizzes = JSON.parse(localStorage.getItem('huutt_quizzes') || '{}');
+        let globalAllQuizzes = {}; // 用於匯出功能
 
         const defaultDemoQuiz = {
             title: "huutt 經典體驗測驗",
@@ -286,7 +301,6 @@
             clearInterval(timerInterval);
         }
 
-        // --- 2. Admin Login & Quiz Join (No-Form Version) ---
         async function handleJoin() {
             const codeInput = document.getElementById('inputQuizCode');
             const nameInput = document.getElementById('inputPlayerName');
@@ -326,18 +340,17 @@
         }
 
         async function fetchQuizData(code) {
-            if (db) {
+            if (rtdb) {
                 try {
-                    const doc = await db.collection('quizzes').doc(code).get();
-                    if (doc.exists) return doc.data();
+                    const snapshot = await rtdb.ref('quizzes/' + code).once('value');
+                    if (snapshot.exists()) return snapshot.val();
                 } catch(err) {
-                    console.log("Firestore 讀取失敗，採用本地儲存");
+                    console.log("RTDB 讀取失敗，改用本地端");
                 }
             }
             return localQuizzes[code] || null;
         }
 
-        // --- 3. Gameplay Engine ---
         function startQuiz() {
             hideAllScreens();
             document.getElementById('screenQuiz').classList.remove('hidden');
@@ -431,7 +444,6 @@
             }, 2000);
         }
 
-        // --- 4. Leaderboard ---
         async function finishQuiz() {
             hideAllScreens();
             document.getElementById('screenLeaderboard').classList.remove('hidden');
@@ -444,16 +456,14 @@
 
         async function saveScore(code, name, score) {
             const entry = { name, score, timestamp: Date.now() };
-
-            if (db) {
+            if (rtdb) {
                 try {
-                    await db.collection('leaderboards').doc(code).collection('scores').add(entry);
+                    await rtdb.ref('leaderboards/' + code).push(entry);
                     return;
                 } catch(e) {
-                    console.log("Firestore 儲存失敗");
+                    console.log("RTDB 分數儲存失敗");
                 }
             }
-
             let scores = JSON.parse(localStorage.getItem(`scores_${code}`) || '[]');
             scores.push(entry);
             localStorage.setItem(`scores_${code}`, JSON.stringify(scores));
@@ -464,24 +474,25 @@
             listContainer.innerHTML = '<div class="text-center text-slate-400 py-4"><i class="fa-solid fa-spinner fa-spin mr-2"></i>載入排行榜中...</div>';
 
             let scores = [];
-
-            if (db) {
+            if (rtdb) {
                 try {
-                    const snapshot = await db.collection('leaderboards').doc(code).collection('scores')
-                                             .orderBy('score', 'desc').limit(20).get();
-                    snapshot.forEach(doc => scores.push(doc.data()));
+                    const snapshot = await rtdb.ref('leaderboards/' + code).once('value');
+                    if (snapshot.exists()) {
+                        snapshot.forEach(childSnap => {
+                            scores.push(childSnap.val());
+                        });
+                    }
                 } catch(e) {
-                    console.log("Firestore 獲取失敗");
+                    console.log("RTDB 排行榜讀取失敗");
                 }
             }
 
             if (scores.length === 0) {
                 scores = JSON.parse(localStorage.getItem(`scores_${code}`) || '[]');
-                scores.sort((a, b) => b.score - a.score);
             }
+            scores.sort((a, b) => b.score - a.score);
 
             listContainer.innerHTML = '';
-
             if (scores.length === 0) {
                 listContainer.innerHTML = `
                     <div class="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
@@ -498,7 +509,6 @@
                 if (index === 2) medal = '<i class="fa-solid fa-medal text-amber-600 text-xl w-6"></i>';
 
                 const isMe = item.name === userName;
-
                 const row = document.createElement('div');
                 row.className = `flex justify-between items-center p-3 rounded-xl ${isMe ? 'bg-blue-50 border-2 border-blue-600' : 'bg-slate-100'}`;
                 row.innerHTML = `
@@ -518,7 +528,6 @@
             startQuiz();
         }
 
-        // --- 5. Admin Dashboard ---
         function openAdminConsole() {
             hideAllScreens();
             document.getElementById('screenAdmin').classList.remove('hidden');
@@ -586,6 +595,51 @@
             reader.readAsDataURL(file);
         }
 
+        // 快速匯入 JSON 檔功能
+        function importQuizFromJson(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const quizData = JSON.parse(e.target.result);
+                    if (!quizData.code || !quizData.title || !quizData.questions) {
+                        alert("JSON 格式不正確，必須包含 code、title 與 questions！");
+                        return;
+                    }
+
+                    // 存入 RTDB 與 LocalStorage
+                    if (rtdb) {
+                        await rtdb.ref('quizzes/' + quizData.code).set(quizData);
+                    }
+                    localQuizzes[quizData.code] = quizData;
+                    localStorage.setItem('huutt_quizzes', JSON.stringify(localQuizzes));
+
+                    alert(`成功匯入測驗：[${quizData.title}]（測驗碼：${quizData.code}）`);
+                    renderAdminQuizList();
+                } catch (err) {
+                    alert("解析 JSON 檔案失敗，請確認檔案格式是否正確。");
+                }
+                input.value = ''; // 重置 input
+            };
+            reader.readAsText(file);
+        }
+
+        // 匯出單一測驗為 JSON 檔
+        async function exportQuizToJson(code) {
+            const quiz = globalAllQuizzes[code];
+            if (!quiz) return;
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(quiz, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `huutt_quiz_${code}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
         async function saveQuiz() {
             const title = document.getElementById('adminQuizTitle').value.trim();
             const code = document.getElementById('adminQuizCode').value.trim().toUpperCase();
@@ -625,18 +679,18 @@
 
             const quizData = { title, code, questions };
 
-            if (db) {
+            if (rtdb) {
                 try {
-                    await db.collection('quizzes').doc(code).set(quizData);
+                    await rtdb.ref('quizzes/' + code).set(quizData);
                 } catch(e) {
-                    console.log("Firebase 儲存失敗");
+                    console.log("RTDB 寫入失敗");
                 }
             }
 
             localQuizzes[code] = quizData;
             localStorage.setItem('huutt_quizzes', JSON.stringify(localQuizzes));
 
-            alert(`測驗 [${title}] 已成功發布！\n測驗碼為：${code}`);
+            alert(`測驗 [${title}] 已成功發布並儲存！\n測驗碼為：${code}`);
             
             document.getElementById('adminQuizTitle').value = '';
             document.getElementById('adminQuizCode').value = '';
@@ -651,18 +705,22 @@
 
             let allQuizzes = { ...localQuizzes };
 
-            if (db) {
+            if (rtdb) {
                 try {
-                    const snapshot = await db.collection('quizzes').get();
-                    snapshot.forEach(doc => {
-                        allQuizzes[doc.id] = doc.data();
-                    });
+                    const snapshot = await rtdb.ref('quizzes').once('value');
+                    if (snapshot.exists()) {
+                        snapshot.forEach(childSnap => {
+                            allQuizzes[childSnap.key] = childSnap.val();
+                        });
+                    }
                 } catch(e) {
-                    console.log("Firebase 取得列表失敗");
+                    console.log("RTDB 取得列表失敗");
                 }
             }
 
+            globalAllQuizzes = allQuizzes; // 存起來供匯出使用
             const keys = Object.keys(allQuizzes);
+            
             if (keys.length === 0) {
                 listEl.innerHTML = '<div class="text-xs text-slate-400">目前尚無已發布的測驗</div>';
                 return;
@@ -671,16 +729,22 @@
             listEl.innerHTML = '';
             keys.forEach(k => {
                 const item = allQuizzes[k];
+                if (!item) return;
                 const div = document.createElement('div');
                 div.className = 'flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm';
                 div.innerHTML = `
                     <div>
-                        <span class="font-black text-slate-800 text-sm">${escapeHtml(item.title)}</span>
+                        <span class="font-black text-slate-800 text-sm">${escapeHtml(item.title || '未命名')}</span>
                         <span class="text-xs text-blue-600 font-bold ml-2">(${k})</span>
                     </div>
-                    <button onclick="deleteQuiz('${k}')" class="text-brand-red hover:bg-red-50 p-2 rounded-lg text-xs font-bold transition">
-                        <i class="fa-solid fa-trash mr-1"></i>刪除
-                    </button>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="exportQuizToJson('${k}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold transition">
+                            <i class="fa-solid fa-download mr-1"></i>匯出
+                        </button>
+                        <button onclick="deleteQuiz('${k}')" class="text-brand-red hover:bg-red-50 p-2 rounded-lg text-xs font-bold transition">
+                            <i class="fa-solid fa-trash mr-1"></i>刪除
+                        </button>
+                    </div>
                 `;
                 listEl.appendChild(div);
             });
@@ -691,11 +755,12 @@
                 return;
             }
 
-            if (db) {
+            if (rtdb) {
                 try {
-                    await db.collection('quizzes').doc(code).delete();
+                    await rtdb.ref('quizzes/' + code).remove();
+                    await rtdb.ref('leaderboards/' + code).remove();
                 } catch(e) {
-                    console.log("Firebase 刪除失敗");
+                    console.log("RTDB 刪除失敗");
                 }
             }
 
@@ -708,7 +773,8 @@
         }
 
         function escapeHtml(str) {
-            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+            if (!str) return '';
+            return str.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
     </script>
 </body>
