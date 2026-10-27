@@ -81,22 +81,22 @@
             <h1 class="text-4xl font-black text-blue-600 mb-2">準備好挑戰了嗎？</h1>
             <p class="text-slate-500 mb-8 font-medium">輸入測驗碼與名字即可開始測驗！</p>
             
-            <form id="joinForm" onsubmit="return handleJoin(event)" class="space-y-4">
+            <div class="space-y-4">
                 <div>
                     <label class="block text-left text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">測驗碼</label>
-                    <input type="text" id="inputQuizCode" required placeholder="例如：MATH101" 
+                    <input type="text" id="inputQuizCode" placeholder="例如：MATH101" 
                            class="w-full px-4 py-3 border-2 border-slate-200 rounded-2xl font-bold text-slate-700 text-center uppercase text-xl focus:border-blue-600 focus:outline-none transition">
                 </div>
                 <div>
                     <label class="block text-left text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">玩家名稱</label>
-                    <input type="text" id="inputPlayerName" required placeholder="請輸入你的暱稱" 
+                    <input type="text" id="inputPlayerName" placeholder="請輸入你的暱稱" 
                            class="w-full px-4 py-3 border-2 border-slate-200 rounded-2xl font-bold text-slate-700 text-center text-xl focus:border-blue-600 focus:outline-none transition" maxlength="15">
                 </div>
-                <button type="submit" 
+                <button type="button" onclick="handleJoin()" 
                         class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black text-xl py-4 rounded-2xl shadow-[0_6px_0_#1e40af] active:shadow-none active:translate-y-1 transition-all">
                     開始測驗
                 </button>
-            </form>
+            </div>
         </div>
 
         <!-- 2. QUIZ SCREEN: Question & Options -->
@@ -286,34 +286,30 @@
             clearInterval(timerInterval);
         }
 
-        // --- 2. Hidden Admin Login & Quiz Join ---
-        async function handleJoin(e) {
-            if (e && e.preventDefault) {
-                e.preventDefault();
-            }
-
+        // --- 2. Admin Login & Quiz Join (No-Form Version) ---
+        async function handleJoin() {
             const codeInput = document.getElementById('inputQuizCode');
             const nameInput = document.getElementById('inputPlayerName');
 
-            if (!codeInput || !nameInput) return false;
+            if (!codeInput || !nameInput) return;
 
             const code = codeInput.value.trim().toUpperCase();
             const name = nameInput.value.trim();
 
             if (code === "ZXCVB123" && name === "管理員") {
                 openAdminConsole();
-                return false;
+                return;
             }
 
             if (!code || !name) {
                 alert("請輸入測驗碼與名字！");
-                return false;
+                return;
             }
 
             const quiz = await fetchQuizData(code);
             if (!quiz) {
                 alert("找不到此測驗碼，請確認後重試！");
-                return false;
+                return;
             }
 
             currentQuiz = quiz;
@@ -327,7 +323,6 @@
             document.getElementById('currentRoomTag').classList.remove('hidden');
 
             startQuiz();
-            return false;
         }
 
         async function fetchQuizData(code) {
@@ -561,7 +556,7 @@
                     <input type="text" placeholder="選項 4" class="q-opt-3 p-2 border rounded-lg text-xs border-slate-300">
                 </div>
                 <div class="flex items-center space-x-4 pt-1">
-                     <label class="text-xs font-bold text-slate-500">正確答案選項：</label> 
+                    <label class="text-xs font-bold text-slate-500">正確答案選項：</label>
                     <select class="q-correct p-1 border rounded text-xs font-bold bg-white border-slate-300">
                         <option value="0">選項 1</option>
                         <option value="1">選項 2</option>
@@ -674,7 +669,7 @@
             }
 
             listEl.innerHTML = '';
-<! DOCTYPE html>keys.forEach(k => {
+            keys.forEach(k => {
                 const item = allQuizzes[k];
                 const div = document.createElement('div');
                 div.className = 'flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm';
@@ -684,7 +679,7 @@
                         <span class="text-xs text-blue-600 font-bold ml-2">(${k})</span>
                     </div>
                     <button onclick="deleteQuiz('${k}')" class="text-brand-red hover:bg-red-50 p-2 rounded-lg text-xs font-bold transition">
-                         <i class="fa-solid fa-trash mr-1"></i>刪除 
+                        <i class="fa-solid fa-trash mr-1"></i>刪除
                     </button>
                 `;
                 listEl.appendChild(div);
@@ -692,7 +687,7 @@
         }
 
         async function deleteQuiz(code) {
-             if (!confirm(`確定要刪除測驗碼為 [${code}] 的測驗嗎？此動作無法復原！`)) { 
+            if (!confirm(`確定要刪除測驗碼為 [${code}] 的測驗嗎？此動作無法復原！`)) {
                 return;
             }
 
@@ -708,7 +703,7 @@
             localStorage.setItem('huutt_quizzes', JSON.stringify(localQuizzes));
             localStorage.removeItem(`scores_${code}`);
 
-             alert(`已成功刪除測驗 [${code}]`); alert(`已成功刪除測驗 [${code}]`);
+            alert(`已成功刪除測驗 [${code}]`);
             renderAdminQuizList();
         }
 
