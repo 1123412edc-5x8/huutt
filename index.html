@@ -84,7 +84,7 @@
             <div class="space-y-4">
                 <div>
                     <label class="block text-left text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">測驗碼</label>
-                    <input type="text" id="inputQuizCode" placeholder="例如：MATH101" 
+                    <input type="text" id="inputQuizCode" placeholder="例如：B1L4A" 
                            class="w-full px-4 py-3 border-2 border-slate-200 rounded-2xl font-bold text-slate-700 text-center uppercase text-xl focus:border-blue-600 focus:outline-none transition">
                 </div>
                 <div>
@@ -144,13 +144,26 @@
             </div>
         </div>
 
-        <!-- 3. FEEDBACK SCREEN -->
-        <div id="screenFeedback" class="hidden text-center py-12 flex-col items-center justify-center space-y-6">
-            <div id="feedbackIcon" class="text-8xl animate-bounce"></div>
-            <h2 id="feedbackText" class="text-4xl font-black text-white drop-shadow-md"></h2>
-            <div class="bg-white/90 backdrop-blur px-8 py-4 rounded-2xl text-2xl font-bold text-slate-700 shadow-xl">
+        <!-- 3. FEEDBACK SCREEN (WITH EXPLANATION) -->
+        <div id="screenFeedback" class="hidden text-center py-6 flex-col items-center justify-center space-y-5 max-w-xl mx-auto w-full">
+            <div id="feedbackIcon" class="text-7xl animate-bounce"></div>
+            <h2 id="feedbackText" class="text-3xl font-black text-white drop-shadow-md"></h2>
+            
+            <div class="bg-white/90 backdrop-blur px-6 py-3 rounded-2xl text-xl font-bold text-slate-700 shadow-xl">
                 獲得分數: <span id="addedScore" class="text-brand-green font-black">+0</span>
             </div>
+
+            <!-- Explanation Box -->
+            <div id="explanationBox" class="hidden bg-white/95 rounded-2xl p-5 shadow-2xl border-2 border-blue-400 text-left w-full">
+                <h4 class="font-black text-blue-600 text-sm mb-1 flex items-center">
+                    <i class="fa-solid fa-lightbulb text-yellow-500 mr-2 text-lg"></i> 題目解析 / 詳解：
+                </h4>
+                <p id="explanationText" class="text-slate-700 font-medium text-sm md:text-base leading-relaxed break-words"></p>
+            </div>
+
+            <button onclick="nextQuestion()" class="bg-brand-yellow hover:bg-yellow-400 text-slate-900 font-black text-lg px-8 py-3 rounded-xl shadow-lg transition">
+                下一題 <i class="fa-solid fa-arrow-right ml-1"></i>
+            </button>
         </div>
 
         <!-- 4. LEADERBOARD / RESULT SCREEN -->
@@ -183,7 +196,7 @@
             <div class="mb-6 bg-blue-50 p-4 rounded-2xl border border-blue-200 flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
                     <h3 class="font-black text-blue-800 text-sm"><i class="fa-solid fa-file-arrow-down mr-1"></i> 快速匯入 / 匯出測驗</h3>
-                    <p class="text-xs text-slate-500 mt-0.5">上傳 JSON 檔快速建立題目，或匯出目前建立的題目備份。</p>
+                    <p class="text-xs text-slate-500 mt-0.5">上傳 JSON 檔快速建立題目（支援題目詳解 `explanation` 欄位）。</p>
                 </div>
                 <div class="flex items-center space-x-2 w-full md:w-auto">
                     <label class="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow text-center flex-grow md:flex-grow-0">
@@ -204,11 +217,11 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-slate-500 mb-1">測驗主題名稱</label>
-                        <input type="text" id="adminQuizTitle" placeholder="例如：數學期末小考" class="w-full p-3 border-2 rounded-xl font-bold border-slate-200 focus:border-blue-600 outline-none">
+                        <input type="text" id="adminQuizTitle" placeholder="例如：B1L4 作者" class="w-full p-3 border-2 rounded-xl font-bold border-slate-200 focus:border-blue-600 outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-500 mb-1">自訂測驗碼 (後綴)</label>
-                        <input type="text" id="adminQuizCode" placeholder="例如：MATH101" class="w-full p-3 border-2 rounded-xl font-bold uppercase border-slate-200 focus:border-blue-600 outline-none">
+                        <input type="text" id="adminQuizCode" placeholder="例如：B1L4A" class="w-full p-3 border-2 rounded-xl font-bold uppercase border-slate-200 focus:border-blue-600 outline-none">
                     </div>
                 </div>
 
@@ -262,30 +275,12 @@
         let timerInterval = null;
         let timeLeft = 20;
         let localQuizzes = JSON.parse(localStorage.getItem('huutt_quizzes') || '{}');
-        let globalAllQuizzes = {}; // 用於匯出功能
-
-        const defaultDemoQuiz = {
-            title: "huutt 經典體驗測驗",
-            code: "DEMO123",
-            questions: [
-                {
-                    title: "世界上最大的海洋是？",
-                    options: ["大西洋", "印度洋", "太平洋", "北冰洋"],
-                    correct: 2,
-                    timeLimit: 15,
-                    image: ""
-                }
-            ]
-        };
+        let globalAllQuizzes = {}; 
 
         window.addEventListener('DOMContentLoaded', () => {
             const hash = window.location.hash.replace('#', '').trim().toUpperCase();
             if(hash) {
                 document.getElementById('inputQuizCode').value = hash;
-            }
-            if (!localQuizzes["DEMO123"]) {
-                localQuizzes["DEMO123"] = defaultDemoQuiz;
-                localStorage.setItem('huutt_quizzes', JSON.stringify(localQuizzes));
             }
         });
 
@@ -407,10 +402,10 @@
                 userScore += pointsGained;
             }
 
-            showFeedback(isCorrect, pointsGained);
+            showFeedback(isCorrect, pointsGained, q.explanation);
         }
 
-        function showFeedback(isCorrect, points) {
+        function showFeedback(isCorrect, points, explanation) {
             hideAllScreens();
             const feedbackScreen = document.getElementById('screenFeedback');
             feedbackScreen.classList.remove('hidden');
@@ -418,6 +413,8 @@
             const iconEl = document.getElementById('feedbackIcon');
             const textEl = document.getElementById('feedbackText');
             const scoreEl = document.getElementById('addedScore');
+            const expBox = document.getElementById('explanationBox');
+            const expText = document.getElementById('explanationText');
 
             if (isCorrect) {
                 iconEl.innerHTML = '<i class="fa-solid fa-circle-check text-brand-green"></i>';
@@ -432,16 +429,24 @@
                 scoreEl.className = "text-slate-400 font-black";
             }
 
-            setTimeout(() => {
-                currentQuestionIdx++;
-                if (currentQuestionIdx < currentQuiz.questions.length) {
-                    hideAllScreens();
-                    document.getElementById('screenQuiz').classList.remove('hidden');
-                    loadQuestion();
-                } else {
-                    finishQuiz();
-                }
-            }, 2000);
+            // 顯示詳解
+            if (explanation && explanation.trim() !== "") {
+                expText.innerText = explanation;
+                expBox.classList.remove('hidden');
+            } else {
+                expBox.classList.add('hidden');
+            }
+        }
+
+        function nextQuestion() {
+            currentQuestionIdx++;
+            if (currentQuestionIdx < currentQuiz.questions.length) {
+                hideAllScreens();
+                document.getElementById('screenQuiz').classList.remove('hidden');
+                loadQuestion();
+            } else {
+                finishQuiz();
+            }
         }
 
         async function finishQuiz() {
@@ -564,6 +569,11 @@
                     <input type="text" placeholder="選項 3" class="q-opt-2 p-2 border rounded-lg text-xs border-slate-300">
                     <input type="text" placeholder="選項 4" class="q-opt-3 p-2 border rounded-lg text-xs border-slate-300">
                 </div>
+
+                <div>
+                    <textarea placeholder="題目詳解 / 補充解析 (選填)" class="q-explanation w-full p-2 border rounded-lg text-xs font-medium border-slate-300 h-16"></textarea>
+                </div>
+
                 <div class="flex items-center space-x-4 pt-1">
                     <label class="text-xs font-bold text-slate-500">正確答案選項：</label>
                     <select class="q-correct p-1 border rounded text-xs font-bold bg-white border-slate-300">
@@ -595,7 +605,6 @@
             reader.readAsDataURL(file);
         }
 
-        // 快速匯入 JSON 檔功能
         function importQuizFromJson(input) {
             const file = input.files[0];
             if (!file) return;
@@ -609,7 +618,6 @@
                         return;
                     }
 
-                    // 存入 RTDB 與 LocalStorage
                     if (rtdb) {
                         await rtdb.ref('quizzes/' + quizData.code).set(quizData);
                     }
@@ -621,12 +629,11 @@
                 } catch (err) {
                     alert("解析 JSON 檔案失敗，請確認檔案格式是否正確。");
                 }
-                input.value = ''; // 重置 input
+                input.value = ''; 
             };
             reader.readAsText(file);
         }
 
-        // 匯出單一測驗為 JSON 檔
         async function exportQuizToJson(code) {
             const quiz = globalAllQuizzes[code];
             if (!quiz) return;
@@ -659,6 +666,7 @@
                 const opt1 = b.querySelector('.q-opt-1').value.trim();
                 const opt2 = b.querySelector('.q-opt-2').value.trim();
                 const opt3 = b.querySelector('.q-opt-3').value.trim();
+                const qExplanation = b.querySelector('.q-explanation').value.trim();
                 const correct = parseInt(b.querySelector('.q-correct').value);
 
                 if (qTitle && opt0 && opt1) {
@@ -667,6 +675,7 @@
                         image: qImage,
                         options: [opt0, opt1, opt2 || '選項3', opt3 || '選項4'],
                         correct: correct,
+                        explanation: qExplanation || "",
                         timeLimit: 15
                     });
                 }
@@ -718,7 +727,7 @@
                 }
             }
 
-            globalAllQuizzes = allQuizzes; // 存起來供匯出使用
+            globalAllQuizzes = allQuizzes;
             const keys = Object.keys(allQuizzes);
             
             if (keys.length === 0) {
